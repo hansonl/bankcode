@@ -531,7 +531,7 @@ public class BankServices extends AccessibilityService {
             }
         } catch (Exception e) {
             e.printStackTrace();
-                        perforGlobalClick(700, 1600);//小米8
+            perforGlobalClick(700, 1600);//小米8
 //            Log.i(BANK_SERVICE_TAG, "clickDialogConfirmt进入try-catch");
         }
     }
@@ -543,12 +543,40 @@ public class BankServices extends AccessibilityService {
      */
 
     public void clickFirstProduct(AccessibilityNodeInfo node) {
+        boolean isInWebView = false;
         try {
 //            if ("android.webkit.WebView".equals(node.getClassName().toString())) {
-                AccessibilityNodeInfo child;
+            AccessibilityNodeInfo child;
+            //小米6
+                /*try {
+                    child = node
+                            .getChild(0)
+                            .getChild(0)
+                            .getChild(0)
+                            .getChild(0)
+                            .getChild(1)
+                            .getChild(0)
+                            .getChild(0)
+                            .getChild(0)
+                            .getChild(1)
+                            .getChild(1)
+                            .getChild(0);
+                } catch (Exception e) {
+                    child = node
+                            .getChild(0)
+                            .getChild(0)
+                            .getChild(1)
+                            .getChild(0)
+                            .getChild(1)
+                            .getChild(0)
+                            .getChild(0)
+                            .getChild(0)
+                            .getChild(1)
+                            .getChild(1)
+                            .getChild(0);
+                }*/
 
-
-                //小米8
+            //小米8
             child2 = node
                     .getChild(0)
                     .getChild(0)
@@ -557,60 +585,64 @@ public class BankServices extends AccessibilityService {
                     .getChild(0)
                     .getChild(1)
                     .getChild(0);
-                AccessibilityNodeInfo child1 = child2
-                        .getChild(0)
-                        .getChild(0)
-                        .getChild(0)
-                        .getChild(1);
-                child = child1
-                        .getChild(0)
-                        .getChild(0)
-                        .getChild(0)
-                        .getChild(0)
-                        .getChild(1)
-                        .getChild(0);
+            Log.i(BANK_SERVICE_TAG, "clickItem------className-----child-----" + child2.getClassName().toString());
+            if ("android.webkit.WebView".equals(child2.getClassName().toString()))
+                isInWebView = true;
+            Log.i(BANK_SERVICE_TAG, "clickItem------className-----child----child------" + child2.getChild(0).getClassName().toString());
+            AccessibilityNodeInfo child1 = child2
+                    .getChild(0)
+                    .getChild(0)
+                    .getChild(0)
+                    .getChild(1);
+            child = child1
+                    .getChild(0)
+                    .getChild(0)
+                    .getChild(0)
+                    .getChild(0)
+                    .getChild(1)
+                    .getChild(0);
 //                Toast.makeText(getApplicationContext(),"找到相应view",Toast.LENGTH_LONG).show();
 
 
-                CharSequence view = child.getText();
-                if (view != null && view.toString().contains("%")) {
+            CharSequence view = child.getText();
+            if (view != null && view.toString().contains("%")) {
 //                    Log.i(BANK_SERVICE_TAG, "clickFirstProduct----childtext-----" + view.toString() + "rate------" + rate);
-                    String getRate = view.toString();
-                    getRate = getRate.substring(0, getRate.length() - 1);
-                    isFirstTimeGoList = true;
-                    if (aMoreThanb(Double.valueOf(getRate), rate)) {//5a-收益率大于设定值符合条件点击第一个条目
+                String getRate = view.toString();
+                getRate = getRate.substring(0, getRate.length() - 1);
+                isFirstTimeGoList = true;
+                if (aMoreThanb(Double.valueOf(getRate), rate)) {//5a-收益率大于设定值符合条件点击第一个条目
 //                        Toast.makeText(getApplicationContext(),"进入了判断比例界面",Toast.LENGTH_LONG).show();
 
 //                        Log.i(BANK_SERVICE_TAG, "clickFirstProduct----" + rate + "-----大于页面第一个and-clicked");
-                        perforGlobalClick(500, 600);//5a-点击第一个条目
-                        handler.postDelayed(new Runnable() {//7-下拉操作之后勾选同意点击确认
-                            @Override
-                            public void run() {
-                                perforGlobalSwipe(500, 1800, 500, 0, 100);//7-下拉操作
-                            }
-                        }, 1000);
-                        //7-商品详情页向下滚动完成
-                        postDelayClick(500, 1300, 1300);
-                        handler.postDelayed(new Runnable() {
-                            @Override
-                            public void run() {
+                    perforGlobalClick(500, 600);//5a-点击第一个条目
+                    handler.postDelayed(new Runnable() {//7-下拉操作之后勾选同意点击确认
+                        @Override
+                        public void run() {
+                            perforGlobalSwipe(500, 1800, 500, 0, 100);//7-下拉操作
+                        }
+                    }, 1000);
+                    //7-商品详情页向下滚动完成
+                    postDelayClick(500, 1300, 1300);
+                    handler.postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
 //                            perforGlobalClick(500, 1800);//7-点击确定 小米6
-                                perforGlobalClick(500, 2000);//7-点击确定 小米8
-                                isFirstProductClick = true;
-                            }
-                        }, 1600);
-                    } else {//5b-返回标志重新筛选
+                            perforGlobalClick(500, 2000);//7-点击确定 小米8
+                            isFirstProductClick = true;
+                        }
+                    }, 1600);
+                } else {//5b-返回标志重新筛选
 //                        Log.i(BANK_SERVICE_TAG, "clickFirstProduct----" + rate + "-----小于页面第一个");
-                        perforGlobalClick(1000, 160);//5b-点击筛选界面
-                        handler.postDelayed(new Runnable() {
-                            @Override
-                            public void run() {
-                                perforGlobalClick(700, 2100);//4-筛选界面点击确定
-                            }
-                        }, 200);
+                    perforGlobalClick(1000, 160);//5b-点击筛选界面
+                    handler.postDelayed(new Runnable() {
+                        @Override
+                        public void run() {
+                            perforGlobalClick(700, 2100);//4-筛选界面点击确定
+                        }
+                    }, 200);
 
-                    }
                 }
+            }
 //            }
 //            else {
 //                for (int i = 0; i < node.getChildCount(); i++) {
@@ -623,35 +655,33 @@ public class BankServices extends AccessibilityService {
             e.printStackTrace();
 //            Log.i(BANK_SERVICE_TAG, "clickFirstProduct进入try-catch");
 //            Toast.makeText(getApplicationContext(),"进入第一个trycatch",Toast.LENGTH_LONG).show();
-
-            try {
-                String s = child2
-                        .getChild(0)
-                        .getChild(1)
-                        .getChild(0)
-                        .getChild(0).getText().toString();
-                if (s.contains("com.csii.pe.core")) {
-                    restartMinsheng();
-//                    Toast.makeText(getApplicationContext(),"进入了判读黑框情况",Toast.LENGTH_LONG).show();
-                }
-            } catch (Exception e1) {
-                e1.printStackTrace();
+            if (isInWebView) {
                 try {
                     String s = child2
                             .getChild(0)
-                            .getChild(0)
-                            .getChild(0)
                             .getChild(1)
-                            .getChild(0).getClassName().toString();
-                    if ("android.widget.Image".equals(s)
-                            && isFirstTimeGoList) {
+                            .getChild(0)
+                            .getChild(0).getText().toString();
+                    if (s.contains("com.csii.pe.core")) {
                         restartMinsheng();
                     }
-                } catch (Exception e2) {
-                    e2.printStackTrace();
+                } catch (Exception e1) {
+                    e1.printStackTrace();
+                    try {
+                        String s = child2
+                                .getChild(0)
+                                .getChild(0)
+                                .getChild(0)
+                                .getChild(1)
+                                .getChild(0).getClassName().toString();
+                        if ("android.widget.Image".equals(s)
+                                && isFirstTimeGoList) {
+                            restartMinsheng();
+                        }
+                    } catch (Exception e2) {
+                        e2.printStackTrace();
+                    }
                 }
-//                Toast.makeText(getApplicationContext(),"进入了第二个trycatch",Toast.LENGTH_LONG).show();
-
             }
         }
     }
