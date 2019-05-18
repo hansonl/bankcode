@@ -3,6 +3,7 @@ package com.weidou.tools;
 import android.accessibilityservice.AccessibilityService;
 import android.graphics.Rect;
 import android.os.Looper;
+import android.provider.Settings;
 import android.util.Log;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
@@ -13,6 +14,7 @@ import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Timer;
 
 import javax.crypto.AEADBadTagException;
 
@@ -37,6 +39,7 @@ public class BankServices extends AccessibilityService {
     private boolean isFirstTimeGoList = false;
     private AccessibilityNodeInfo child2;
     private Double rate;
+    private int i = 1;
 
     @Override
     public void onCreate() {
@@ -204,10 +207,24 @@ public class BankServices extends AccessibilityService {
                 break;
             case AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED:
                 eventText = "TYPE_WINDOW_STATE_CHANGED";
+
+                for (int i = 1; i <= 10; i++) {
+                    long start = System.currentTimeMillis();
+                    Log.i(BANK_SERVICE_TAG, i + "start" + start + "");
+                    try {
+                        Thread.sleep(250);
+                        perforGlobalClick(1000, 160);//5b-点击筛选界面
+                        Thread.sleep(250);
+                        perforGlobalClick(700, 2100);//4-筛选界面点击确定
+                        long end = System.currentTimeMillis();
+                        Log.i(BANK_SERVICE_TAG, i + "end" + end + "");
+                        Log.i(BANK_SERVICE_TAG,"耗时"+(end-start));
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+
                 if ("cn.com.cmbc.safe.activity.PwdVerifyActivity".equals(classeName)) {//9-输入密码界面
-                    //10-重置
-                    isFirstClickConfirm = true;
-                    isFirstProductClick = true;
 //                    坐标小米6
 //                    1(177,1258)
 //                    2(534,1258)
@@ -231,6 +248,9 @@ public class BankServices extends AccessibilityService {
                     postDelayClick(177, 1641, 300);
                     postDelayClick(177, 1641, 350);
                     postDelayClick(177, 1641, 400);
+
+                    //10-重置
+                    isFirstProductClick = true;
 
 
                     handler.postDelayed(new Runnable() {
@@ -302,26 +322,26 @@ public class BankServices extends AccessibilityService {
 
                 }
 
-
                 break;
             case AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED:
                 eventText = "TYPE_WINDOW_CONTENT_CHANGED";
 
-                if ((BANK_PACKAGE_NAME + ".activity.MainActivity").equals(classeName)) {//从登陆界面出来
-                    // 1-点击首页的银行理财
-                    execShellCmd("input tap 500 700");
-                } else if (
-                        ("android.view.View").equals(event.getClassName().toString())
-                                || ("android.widget.FrameLayout").equals(event.getClassName().toString())
-                                && isFirstProductClick) {
-//                    Log.i(BANK_SERVICE_TAG, "进入了view情况" + lastWindowContentChangeClassName + "----当前classname----" + classeName);
-                    clickFirstProduct(getRootInActiveWindow());//5a-进入了商品详情
-
-                } else if (("android.app.Dialog").equals(classeName)) {//8-找到对话框点击确认
-                    clickDialogConfirm(getRootInActiveWindow());
-                }
-                lastSecondWindowContentChangeClassName = lastWindowContentChangeClassName;
-                lastWindowContentChangeClassName = classeName;
+//
+//                if ((BANK_PACKAGE_NAME + ".activity.MainActivity").equals(classeName)) {//从登陆界面出来
+//                    // 1-点击首页的银行理财
+//                    execShellCmd("input tap 500 700");
+//                } else if (
+//                        ("android.view.View").equals(event.getClassName().toString())
+//                                || ("android.widget.FrameLayout").equals(event.getClassName().toString())
+//                                && isFirstProductClick) {
+////                    Log.i(BANK_SERVICE_TAG, "进入了view情况" + lastWindowContentChangeClassName + "----当前classname----" + classeName);
+//                    clickFirstProduct(getRootInActiveWindow());//5a-进入了商品详情
+//
+//                } else if (("android.app.Dialog").equals(classeName)) {//8-找到对话框点击确认
+//                    clickDialogConfirm(getRootInActiveWindow());
+//                }
+//                lastSecondWindowContentChangeClassName = lastWindowContentChangeClassName;
+//                lastWindowContentChangeClassName = classeName;
 
                 break;
             case AccessibilityEvent.TYPE_VIEW_SCROLLED:
@@ -355,6 +375,7 @@ public class BankServices extends AccessibilityService {
         perforGlobalClick(450, 200);
         isLogin = false;
         isFirstTimeGoList = false;
+        isFirstClickConfirm = true;
     }
 
     @Override
@@ -531,7 +552,6 @@ public class BankServices extends AccessibilityService {
             }
         } catch (Exception e) {
             e.printStackTrace();
-            perforGlobalClick(700, 1600);//小米8
 //            Log.i(BANK_SERVICE_TAG, "clickDialogConfirmt进入try-catch");
         }
     }
@@ -585,7 +605,6 @@ public class BankServices extends AccessibilityService {
                     .getChild(0)
                     .getChild(1)
                     .getChild(0);
-            Log.i(BANK_SERVICE_TAG, "clickItem------className-----child-----" + child2.getClassName().toString());
             if ("android.webkit.WebView".equals(child2.getClassName().toString()))
                 isInWebView = true;
             Log.i(BANK_SERVICE_TAG, "clickItem------className-----child----child------" + child2.getChild(0).getClassName().toString());
@@ -849,7 +868,7 @@ public class BankServices extends AccessibilityService {
      * @param y
      */
     public void perforGlobalClick(int x, int y) {
-//        Log.i(BANK_SERVICE_TAG, "shell tap----" + x + ":" + y);
+        Log.i(BANK_SERVICE_TAG, "shell tap----" + x + ":" + y);
         execShellCmd("input tap " + x + " " + y);
     }
 
