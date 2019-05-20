@@ -32,7 +32,23 @@ public class XposedInit implements IXposedHookLoadPackage {
     private ClassLoader sdkWebViewClassLoader;
     private Object comTencentSmttSdkWebview;
     int i= 0;
-     //stable version
+     //stable version 可以不用滚动点击同意确认
+//    String js = "javascript:var script = document.createElement(\"script\");" +
+//            "script.type = \"text/javascript\";" +
+//            "function func(event) {" +
+//                //"document.getElementsByClassName(\"am-flexbox-item\")[0].classList.add(\"event_added_111\");" +
+//                "var el = document.getElementsByClassName(\"transfer-detail-viewd69fd0-protocol\")[0];" +
+//
+//                "if (el.classList[1] == \"unchecked\") {" +
+//                    "el.click();" +
+//                    "setTimeout(function() { document.getElementsByClassName(\"am-button-primary\")[0].click();}, 100);" +
+//                "}" +
+//
+//
+//            "};" +
+//
+//            "document.getElementsByClassName(\"am-flexbox-item\")[0].addEventListener(\"click\", func);";
+
     String js = "javascript:var script = document.createElement(\"script\");" +
             "script.type = \"text/javascript\";" +
             "function func(event) {" +
@@ -42,28 +58,14 @@ public class XposedInit implements IXposedHookLoadPackage {
                 "if (el.classList[1] == \"unchecked\") {" +
                     "el.click();" +
                     "setTimeout(function() { document.getElementsByClassName(\"am-button-primary\")[0].click();}, 100);" +
+                    "setTimeout(function() { document.getElementsByClassName(\"am-modal-button\")[1].click();}, 150);" +
+
                 "}" +
 
 
             "};" +
 
             "document.getElementsByClassName(\"am-flexbox-item\")[0].addEventListener(\"click\", func);";
-//    String js = "javascript:var script = document.createElement(\"script\");" +
-//            "script.type = \"text/javascript\";" +
-//            "function func() {" +
-//                //"document.getElementsByClassName(\"am-flexbox-item\")[0].classList.add(\"event_added_111\");" +
-//                "var el = document.getElementsByClassName(\"transfer-detail-viewd69fd0-protocol\")[0];" +
-//                "console.log(\"1111\");" +
-//
-//                "if (el.classList[1] == \"unchecked\") {" +
-//                    "el.click();" +
-//                    "setTimeout(function() { document.getElementsByClassName(\"am-button-primary\")[0].click();}, 100);" +
-//                    "console.log(\"2222\");" +
-//                "}" +
-//
-//            "};" +
-//            "func();";
-            //"document.getElementsByClassName(\"am-flexbox-item\")[0].addEventListener(\"click\", func);";
 
 
     @Override
