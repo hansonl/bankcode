@@ -1,29 +1,38 @@
 package com.weidou.tools;
 
+import android.app.AndroidAppHelper;
 import android.app.Application;
 import android.content.Context;
+import android.nfc.Tag;
 import android.text.TextUtils;
 import android.util.Log;
-import android.webkit.WebView;
-import android.webkit.WebViewClient;
 
-import org.json.JSONObject;
+import com.google.gson.Gson;
+import com.jakewharton.retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory;
+import com.liqi.nohttputils.RxNoHttpUtils;
+import com.liqi.nohttputils.interfa.OnIsRequestListener;
+import com.liqi.nohttputils.nohttp.NoHttpInit;
 
-import java.io.OutputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.concurrent.TimeUnit;
 
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage;
+import io.reactivex.Observable;
+import io.reactivex.Observer;
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.functions.Consumer;
+import io.reactivex.schedulers.Schedulers;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
 
+import static android.content.ContentValues.TAG;
 import static de.robv.android.xposed.XposedHelpers.findAndHookMethod;
 import static de.robv.android.xposed.XposedHelpers.findClass;
 
@@ -31,9 +40,9 @@ public class XposedInit implements IXposedHookLoadPackage {
 
     private ClassLoader sdkWebViewClassLoader;
     private Object comTencentSmttSdkWebview;
-    int i= 0;
-     //stable version 可以不用滚动点击同意确认
-//    String js = "javascript:var script = document.createElement(\"script\");" +
+    int i = 0;
+    //stable version 可以不用滚动点击同意确认
+//    String jsJumpScroll = "javascript:var script = document.createElement(\"script\");" +
 //            "script.type = \"text/javascript\";" +
 //            "function func(event) {" +
 //                //"document.getElementsByClassName(\"am-flexbox-item\")[0].classList.add(\"event_added_111\");" +
@@ -49,23 +58,39 @@ public class XposedInit implements IXposedHookLoadPackage {
 //
 //            "document.getElementsByClassName(\"am-flexbox-item\")[0].addEventListener(\"click\", func);";
 
-    String js = "javascript:var script = document.createElement(\"script\");" +
+    String jsJumpScroll = "javascript:var script = document.createElement(\"script\");" +
             "script.type = \"text/javascript\";" +
             "function func(event) {" +
-                //"document.getElementsByClassName(\"am-flexbox-item\")[0].classList.add(\"event_added_111\");" +
-                "var el = document.getElementsByClassName(\"transfer-detail-viewd69fd0-protocol\")[0];" +
+            //"document.getElementsByClassName(\"am-flexbox-item\")[0].classList.add(\"event_added_111\");" +
+            "var el = document.getElementsByClassName(\"transfer-detail-viewd69fd0-protocol\")[0];" +
 
-                "if (el.classList[1] == \"unchecked\") {" +
-                    "el.click();" +
-                    "setTimeout(function() { document.getElementsByClassName(\"am-button-primary\")[0].click();}, 100);" +
-                    "setTimeout(function() { document.getElementsByClassName(\"am-modal-button\")[1].click();}, 150);" +
+            "if (el.classList[1] == \"unchecked\") {" +
+            "el.click();" +
+            "setTimeout(function() { document.getElementsByClassName(\"am-button-primary\")[0].click();}, 10);" +
+            "setTimeout(function() { document.getElementsByClassName(\"am-modal-button\")[1].click();}, 60);" +
 
-                "}" +
+            "}" +
 
 
             "};" +
 
             "document.getElementsByClassName(\"am-flexbox-item\")[0].addEventListener(\"click\", func);";
+
+    String jsReload = "javascript:var script = document.createElement(\"script\");" +
+            "script.type = \"text/javascript\";" +
+            "function f(event) {" +
+            "document.location.reload(); " +
+            "};" +
+
+            "document.getElementsByClassName(\"am-list-view-scrollview-content\")[0].addEventListener(\"click\", f);";
+    private Context applicationContext;
+    private Disposable mDisposable;
+    private int netWorkCount = 0;
+    private int yanchi;
+    private Double rate;
+    private int blackCount = 0;
+    private ListData.ResponseBean.ListBean listBean;
+    private int poenLock;
 
 
     @Override
@@ -73,10 +98,42 @@ public class XposedInit implements IXposedHookLoadPackage {
         if (isInjecter(this.getClass().getName())) {
             return;
         }
-        if (!lpparam.isFirstApplication)return;
+        if (!lpparam.isFirstApplication) return;
+
         if ("cn.com.cmbc.newmbank".equals(lpparam.processName)) {
-            XposedBridge.log("检测到民生银行"+i+lpparam.processName);
+            XposedBridge.log("检测到民生银行" + i + lpparam.processName);
             i++;
+
+            String baifenbi = FileUtils.getFileFromSdcard("baifenbi");
+            if (TextUtils.isEmpty(baifenbi))
+                rate = Double.valueOf("0.048");
+            else {
+                try {
+                    rate = Double.valueOf(baifenbi);
+                } catch (Exception e) {
+                    rate = Double.valueOf("0.048");
+                }
+            }
+
+            String yanchiTemp = FileUtils.getFileFromSdcard("yanchi");
+            if (TextUtils.isEmpty(baifenbi))
+                yanchi = 200;
+            else {
+                try {
+                    yanchi = Integer.parseInt(yanchiTemp);
+                } catch (Exception e) {
+                    yanchi = 200;
+                }
+            }
+
+            findAndHookMethod(findClass("android.content.ContextWrapper", lpparam.classLoader)
+                    , "getApplicationContext", new XC_MethodHook() {
+                        @Override
+                        protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                            super.afterHookedMethod(param);
+                            applicationContext = (Context) param.getResult();
+                        }
+                    });
 
 
             //拿到页面加载的网页信息
@@ -88,6 +145,7 @@ public class XposedInit implements IXposedHookLoadPackage {
                 protected void afterHookedMethod(MethodHookParam param) throws Throwable {
                     ClassLoader cl = ((Context) param.args[0]).getClassLoader();
                     Class<?> hookclass = null;
+
                     try {
                         hookclass = cl.loadClass("com.tesla.tmd.UsinglogManager");
                     } catch (Exception e) {
@@ -117,7 +175,7 @@ public class XposedInit implements IXposedHookLoadPackage {
                                     @Override
                                     protected void afterHookedMethod(MethodHookParam param) throws Throwable {
                                         super.afterHookedMethod(param);
-                                        XposedBridge.log("attch进入了UsinglogManager里面的onWebPage方法---方法后");
+                                        XposedBridge.log("attch进入了UsinglogManager里面的onWebPage方法---方法后" + param.args[0].toString());
                                     }
                                 });
                     } catch (Exception throwable) {
@@ -125,7 +183,6 @@ public class XposedInit implements IXposedHookLoadPackage {
                     }
                 }
             });
-
 
 
             findAndHookMethod(Application.class, "attach", Context.class, new XC_MethodHook() {
@@ -175,8 +232,8 @@ public class XposedInit implements IXposedHookLoadPackage {
                                         //疯狂注入方式可行稳定 正常的流程下没问题 疯狂重复刷新列表页没问题 退出webview在进入也没问题 重启app没问题
                                         comTencentSmttSdkWebview = param.thisObject;
                                         XposedHelpers.callMethod(comTencentSmttSdkWebview
-                                                ,"loadUrl"
-                                                ,js);
+                                                , "loadUrl"
+                                                , jsJumpScroll);
                                         XposedBridge.log("注入成功");
                                     }
                                 });
@@ -276,13 +333,13 @@ public class XposedInit implements IXposedHookLoadPackage {
                         findAndHookMethod(hookclass,
                                 "executeJavaScript"
                                 , String.class
-                                ,String.class
+                                , String.class
                                 , new XC_MethodHook() {
 
                                     @Override
                                     protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
                                         XposedBridge.log("执行cn.com.cmbc.newmbank.webkitjsimpl.WebKitEncryForCmbc.excuteJavaScript方法前参数1" +
-                                                param.args[0].toString()+"参数2"+param.args[1].toString());
+                                                param.args[0].toString() + "参数2" + param.args[1].toString());
 
                                     }
 
@@ -329,17 +386,17 @@ public class XposedInit implements IXposedHookLoadPackage {
                                     @Override
                                     protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
                                         super.beforeHookedMethod(param);
-                                        XposedBridge.log("x5webviewClient中onPageFinished执行前arg="+param.args[1]);
+                                        XposedBridge.log("x5webviewClient中onPageFinished执行前arg=" + param.args[1]);
                                     }
 
                                     @Override
                                     protected void afterHookedMethod(MethodHookParam param) throws Throwable {
                                         super.afterHookedMethod(param);
-                                        //打开webview onpageFinished后注入 正常的流程下没问题 疯狂重复刷新列表页没问题 退出webview在进入不能点击不能弹出对话框 重启app没问题
-//                                        XposedHelpers.callMethod(comTencentSmttSdkWebview
-//                                                ,"loadUrl"
-//                                                ,js);
-//                                        XposedBridge.log("注入成功");
+                                        if (netWorkCount == 0) {
+//                                            initNetWork();
+//                                            XposedBridge.log("初始化network");
+                                            netWorkCount = 1;
+                                        }
                                         XposedBridge.log("x5webviewClient中onPageFinished执行后");
                                     }
                                 });
@@ -398,7 +455,6 @@ public class XposedInit implements IXposedHookLoadPackage {
 //            } catch (Exception throwable) {
 //                throwable.printStackTrace();
 //            }
-
 
 
             //尝试找到执行一次的方法 找不到这个类
@@ -481,20 +537,20 @@ public class XposedInit implements IXposedHookLoadPackage {
 //            });
 
 
-//            findAndHookMethod(Application.class, "attach", Context.class, new XC_MethodHook() {
-//                @Override
-//                protected void afterHookedMethod(MethodHookParam param) throws Throwable {
-//                    ClassLoader cl = ((Context) param.args[0]).getClassLoader();
-//                    Class<?> hookclass = null;
-//                    try {
-//                        hookclass = cl.loadClass("com.cmbc.firefly.webview.engine.FfWebViewClient");
-//                    } catch (Exception e) {
-//                        XposedBridge.log("attch寻找com.cmbc.firefly.webview.engine.FfWebViewClient" + e.toString());
-//                        return;
-//                    }
-//                    XposedBridge.log("attch寻找com.cmbc.firefly.webview.engine.FfWebViewClient成功");
-//
-//                    try {
+            findAndHookMethod(Application.class, "attach", Context.class, new XC_MethodHook() {
+                @Override
+                protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                    ClassLoader cl = ((Context) param.args[0]).getClassLoader();
+                    Class<?> hookclass = null;
+                    try {
+                        hookclass = cl.loadClass("com.cmbc.firefly.webview.engine.FfWebViewClient");
+                    } catch (Exception e) {
+                        XposedBridge.log("attch寻找com.cmbc.firefly.webview.engine.FfWebViewClient" + e.toString());
+                        return;
+                    }
+                    XposedBridge.log("attch寻找com.cmbc.firefly.webview.engine.FfWebViewClient成功");
+
+                    try {
 //                        findAndHookMethod(hookclass
 //                                , "shouldInterceptRequest"
 //                                , hookclass.getClassLoader().loadClass("com.tencent.smtt.sdk.WebView")
@@ -513,11 +569,24 @@ public class XposedInit implements IXposedHookLoadPackage {
 //                                        XposedBridge.log("attch进入了FfWebViewClient里面的shouldInterceptRequest方法---方法后" + param.getResult().toString());
 //                                    }
 //                                });
-//                    } catch (Exception throwable) {
-//                        throwable.printStackTrace();
-//                    }
-//                }
-//            });
+
+                        findAndHookMethod(hookclass
+                                , "onPageFinished"
+                                , hookclass.getClassLoader().loadClass("com.tencent.smtt.sdk.WebView")
+                                , String.class
+                                , new XC_MethodHook() {
+                                    @Override
+                                    protected void afterHookedMethod(MethodHookParam param) throws Throwable {
+                                        super.afterHookedMethod(param);
+                                        XposedBridge.log("FfWebViewClient____reload注入成功");
+                                    }
+                                });
+
+                    } catch (Exception throwable) {
+                        throwable.printStackTrace();
+                    }
+                }
+            });
 
             //重新载入url的方法（没有测试完成）
             //cn.com.cmbc.newmbank.views.WebKitView.loadUrl(String,String) 不知道那个string是url
@@ -710,22 +779,177 @@ public class XposedInit implements IXposedHookLoadPackage {
         }
     }
 
+    private void initNetWork() {
+        poenLock = 0;
+        /*
+         * 步骤1：采用interval（）延迟发送
+         * 注：此处主要展示无限次轮询，若要实现有限次轮询，仅需将interval（）改成intervalRange（）即可
+         **/
+        Observable.interval(2000, yanchi, TimeUnit.MILLISECONDS)
+                // 参数说明：
+                // 参数1 = 第1次延迟时间；
+                // 参数2 = 间隔时间数字；
+                // 参数3 = 时间单位；
+                // 该例子发送的事件特点：延迟2s后发送事件，每隔1秒产生1个数字（从0开始递增1，无限个）
+
+                /*
+                 * 步骤2：每次发送数字前发送1次网络请求（doOnNext（）在执行Next事件前调用）
+                 * 即每隔1秒产生1个数字前，就发送1次网络请求，从而实现轮询需求
+                 **/
+                .doOnNext(new Consumer<Long>() {
+                    @Override
+                    public void accept(Long integer) {
+                        Log.d(TAG, "第 " + integer + " 次轮询");
+                    }
+                }).subscribe(new Observer<Long>() {
+            @Override
+            public void onSubscribe(Disposable d) {
+                mDisposable = d;
+
+            }
+
+            @Override
+            public void onNext(Long value) {
+
+                /*
+                 * 步骤3：通过Retrofit发送网络请求
+                 **/
+                // a. 创建Retrofit对象
+                Retrofit retrofit = new Retrofit.Builder()
+                        .baseUrl("https://m1.cmbc.com.cn/gw/") // 设置 网络请求 Url
+                        .addConverterFactory(GsonConverterFactory.create()) //设置使用Gson解析(记得加入依赖)
+                        .addCallAdapterFactory(RxJava2CallAdapterFactory.create()) // 支持RxJava
+                        .build();
+
+                // b. 创建 网络请求接口 的实例
+                final PostInterface request = retrofit.create(PostInterface.class);
+
+                // c. 采用Observable<...>形式 对 网络请求 进行封装
+                RequestBody requestBody = new Gson().fromJson("{\"request\":{\"header\":{\"appId\":\"\",\"appVersion\":\"4.4\",\"device\":{\"osType\":\"03\",\"osVersion\":\"\",\"uuid\":\"\"}},\"body\":{\"pageSize\":10,\"currentIndex\":0,\"pageNo\":1,\"orderFlag\":\"3\",\"currType\":[],\"miniAmt\":[],\"prdType\":[],\"timeLimit\":[]}}}", RequestBody.class);
+                Observable<ListData> observable = request.getList(requestBody);
+                // d. 通过线程切换发送网络请求
+                observable.subscribeOn(Schedulers.io())               // 切换到IO线程进行网络请求
+                        .observeOn(AndroidSchedulers.mainThread())  // 切换回到主线程 处理请求结果
+                        .subscribe(new Observer<ListData>() {
+                            @Override
+                            public void onSubscribe(Disposable d) {
+                            }
+
+                            @Override
+                            public void onNext(ListData result) {
+                                // e.接收服务器返回的数据
+                                try {
+                                    if (result == null || result.response == null)
+                                        return;
+                                    if (result.response.list == null || result.response.list.size() == 0) {
+                                        if (result.response.returnCode != null)
+                                            Log.d(TAG, "请求失败:" + result.response.returnCode.type);
+                                        return;
+                                    }
+                                    listBean = result.response.list.get(0);
+//                                    if (MathUtils.getInstance().judgeItem(listBean.pfirstAmt, listBean.incomeRate, listBean.prdNextDate, listBean.concesPrice, listBean.liveTime)) {
+                                    long beforeLog = System.currentTimeMillis();
+                                    Log.d(TAG, "请求成功" + listBean.orderId);
+//                                    pfirstAmt * incomeRate / 365 * （nowDate - startDate - 1） - concesPrice> n
+                                    Log.i(TAG, "pfirstAmt:" + listBean.pfirstAmt +
+                                            "incomeRate:" + listBean.incomeRate +
+                                            "startDate:" + listBean.prdNextDate +
+                                            "concesPrice:" + listBean.concesPrice +
+                                            "liveTime:" + listBean.liveTime +
+                                            "realIncomeRate：" + listBean.realIncomeRate);
+                                    Log.i(TAG,"当前设置比例"
+                                    +rate
+                                    +"当前设置网络延迟"
+                                    + yanchi+"");
+                                    long afterLog = System.currentTimeMillis();
+                                    if (MathUtils.getInstance().aMoreThanb(listBean.realIncomeRate, rate)) {
+                                        long afterJudage = System.currentTimeMillis();
+                                        cancel();
+                                        long beforeOpenPage = System.currentTimeMillis();
+                                        if (poenLock == 0){
+                                            poenLock = 1;
+                                            XposedHelpers.callMethod(comTencentSmttSdkWebview
+                                                    , "loadUrl"
+                                                    , "javascript:window.location.replace(\"https://m1.cmbc.com.cn/CMBC_MBServer/new/app/mobile-bank/finance/transfer-trans?isPayer=true&orderId=" +
+                                                            listBean.orderId +
+                                                            "&prdCode=" +
+                                                            listBean.prdCode +
+                                                            "&transLot=" +
+                                                            listBean.vol +
+                                                            "\");");
+                                            long afterOpenPage = System.currentTimeMillis();
+                                            Log.i(TAG,"log时间："+(afterLog - beforeLog)+"判断时间："+(afterJudage - afterLog)+"打开网页时间："+(afterOpenPage - beforeOpenPage));
+                                        }
+                                    }
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                    blackCount++;
+                                    cancel();
+                                    if (blackCount % 6 == 0) {
+                                        XposedHelpers.callMethod(comTencentSmttSdkWebview
+                                                , "loadUrl"
+                                                , "javascript:alert(\"重启失败\");");
+                                        blackCount = 0;
+                                    } else {
+                                        initNetWork();
+                                    }
+                                    Log.i(TAG, "进入exception");
+//
+                                }
+                            }
+
+                            @Override
+                            public void onError(Throwable e) {
+                                Log.d(TAG, "请求失败" + e.getMessage());
+                            }
+
+                            @Override
+                            public void onComplete() {
+
+                            }
+                        });
+
+            }
+
+            @Override
+            public void onError(Throwable e) {
+                Log.d(TAG, "对Error事件作出响应");
+            }
+
+            @Override
+            public void onComplete() {
+                Log.d(TAG, "对Complete事件作出响应");
+            }
+        });
+
+    }
 
     /**
-     *防止重复执行Hook代码
+     * 取消订阅
+     */
+    public void cancel() {
+        if (mDisposable != null && !mDisposable.isDisposed()) {
+            mDisposable.dispose();
+        }
+    }
+
+
+    /**
+     * 防止重复执行Hook代码
+     *
      * @param flag 判断标识,针对不同Hook代码分别进行判断
      * @return 是否已经注入Hook代码
      */
     private boolean isInjecter(String flag) {
         try {
-            XposedBridge.log("进入isInjecter"+flag);
+            XposedBridge.log("进入isInjecter" + flag);
             if (TextUtils.isEmpty(flag)) return false;
             XposedBridge.log("text_is_not_empty");
             Field methodCacheField = XposedHelpers.class.getDeclaredField("methodCache");
             methodCacheField.setAccessible(true);
             HashMap<String, Method> methodCache = (HashMap<String, Method>) methodCacheField.get(null);
-            Method method=XposedHelpers.findMethodBestMatch(Application.class,"onCreate");
-            String key=String.format("%s#%s",flag,method.getName());
+            Method method = XposedHelpers.findMethodBestMatch(Application.class, "onCreate");
+            String key = String.format("%s#%s", flag, method.getName());
             if (methodCache.containsKey(key)) return true;
             methodCache.put(key, method);
             return false;
