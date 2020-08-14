@@ -92,6 +92,11 @@ public class ListData {
             public double incomeRate;
             public String prdNextDate;
             public double realIncomeRate;
+            public double amt;
+            public String prdType;
+            public String endDate;
+            public String nextEndDate;
+            public String startDate;
         }
     }
 }

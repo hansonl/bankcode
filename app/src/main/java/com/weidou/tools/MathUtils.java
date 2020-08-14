@@ -31,10 +31,27 @@ public class MathUtils {
 
 //    pfirstAmt * incomeRate / 365 * ( liveTime - （ prdNextDate - nowDate ） - 4) > |concesPrice|
 
-    public boolean judgeItem(double pfirstAmt, double incomeRate, String prdNextDate, double concesPrice, int liveTime) throws ParseException {
-        double mul = mul(div(mul(pfirstAmt, incomeRate), 365, DEF_DIV_SCALE), liveTime - fromToday(prdNextDate) - 3.8);
-        Log.i(TAG,
-                "fromDate:" + fromToday(prdNextDate) +
+    public boolean judgeItem(double pfirstAmt, double incomeRate, String endDate, String prdNextDate,String nextEndDate,String startDate ,String prdType, double concesPrice, int liveTime) throws ParseException {
+        String realTime =  null;
+        Date date = new Date();
+        if ("2".equals(prdType) || "6".equals(prdType)) {
+            realTime = endDate;
+        } else {
+            if (date.getTime() <= getMillTime(startDate) && getMillTime(prdNextDate) > getMillTime(startDate)) {
+                realTime = prdNextDate;
+            } else {
+                if (date.getTime() <= getMillTime(startDate) && getMillTime(prdNextDate) <= getMillTime(startDate)) {
+                    realTime = nextEndDate;
+                } else {
+                    if (date.getTime() > getMillTime(startDate)) {
+                        realTime = prdNextDate;
+                    }
+                }
+            }
+        }
+        double mul = mul(div(mul(pfirstAmt, incomeRate), 365, DEF_DIV_SCALE), liveTime - fromToday(realTime) - 3.8);
+        Log.i(TAG,"realTime" + realTime+
+                "fromDate:" + fromToday(realTime) +
                 "result:" + mul
         );
         return aMoreThanb(mul
@@ -42,8 +59,41 @@ public class MathUtils {
     }
 
 
+//    (vol + ((vol * incomeRate) * liveTime / 365 ) - amt) / amt / |(ipoEndDate - nowDate)| * 365
+
+
+    public boolean judgeItemRate(double vol, double incomeRate,double amt,String endDate, String prdNextDate,String nextEndDate,String startDate ,String prdType, double rate, int liveTime) throws ParseException {
+        double mul = div(add(vol,sub((div(mul(mul(vol, incomeRate),liveTime), 365,DEF_DIV_SCALE)),amt)),amt,DEF_DIV_SCALE);
+        String realTime =  null;
+        Date date = new Date();
+        if ("2".equals(prdType) || "6".equals(prdType)) {
+            realTime = endDate;
+        } else {
+            if (date.getTime() <= getMillTime(startDate) && getMillTime(prdNextDate) > getMillTime(startDate)) {
+                realTime = prdNextDate;
+            } else {
+                if (date.getTime() <= getMillTime(startDate) && getMillTime(prdNextDate) <= getMillTime(startDate)) {
+                    realTime = nextEndDate;
+                } else {
+                    if (date.getTime() > getMillTime(startDate)) {
+                        realTime = prdNextDate;
+                    }
+                }
+            }
+        }
+        double result = mul(div(mul,fromToday(realTime),DEF_DIV_SCALE),365);
+
+        Log.i(TAG,"realTime" + realTime+
+                "fromDate:" + fromToday(realTime) +
+                        "result:" + result
+        );
+        return aMoreThanb(result
+                , rate);
+    }
+
+
     // 默认除法运算精度
-    private final int DEF_DIV_SCALE = 4;
+    private final int DEF_DIV_SCALE = 8;
 
     /**
      * 提供精确的乘法运算。
@@ -138,5 +188,19 @@ public class MathUtils {
 
 
         return (int) ((date.getTime() - date1.getTime()) / (1000 * 3600 * 24)) + 1;
+    }
+
+    public long getMillTime(String timeString) {
+        if (simpleDateFormat4 == null) {
+            simpleDateFormat4 = new SimpleDateFormat("yyyy-MM-dd");
+            simpleDateFormat4.setTimeZone(TimeZone.getTimeZone("GMT+8"));
+        }
+        Date date = null;
+        try {
+            date = simpleDateFormat4.parse(timeString);
+        } catch (ParseException e) {
+            return  0;
+        }
+        return  date.getTime();
     }
 }
